@@ -1,4 +1,4 @@
-from tasts import data_parser
+from parser import data_parser
 
 
 
