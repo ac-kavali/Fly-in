@@ -37,6 +37,7 @@ data_checklist = {"start_hub": 0,
 class Parser:
     def __init__(self, filename):
         self._filename = filename
+        self.meta_data_pattern = re.compile(r"\[(\w+=\S+)(\s+\w+=\S+)*\]")
 
 
     @staticmethod
@@ -50,10 +51,9 @@ class Parser:
             raise ConfigFileError(f"Line {line_number}: {data_specification} must be a different to zero!")
         return int(string_num)
 
-    @staticmethod
-    def _parse_metadata(line, line_number):
+    def _parse_metadata(self, line, line_number):
         metadata_part = " ".join(line.split(" ")[4:]).strip()
-        metadata = re.match(meta_data_pattern, metadata_part)
+        metadata = re.match(self.meta_data_pattern, metadata_part)
         if metadata:
             metadata = re.split(r"[ =]", metadata.group(0))
             metadata = [data.replace("[", "").replace("]", "") for data in metadata]
@@ -62,6 +62,7 @@ class Parser:
             metadata = dict(zip(metadata[::2], metadata[1::2]))
             if len(metadata) < total_len:
                 raise ConfigFileError(f"Line {line_number}: duplicate meta-data specifications")
+            return metadata
         else:
             raise ConfigFileError(f"Line {line_number}: meta-data bad syntax ")
 
@@ -92,7 +93,7 @@ class Parser:
                                 start_hub["name"] = line.split(":")[1].strip().split(" ")[0]
                             except IndexError:
                                 raise ConfigFileError("Messing Hub name")
-                            if meta_data_pattern.match(start_hub["name"]):
+                            if self.meta_data_pattern.match(start_hub["name"]):
                                 raise ConfigFileError("Metadata must be after coordinates")
 
                             if start_hub["name"].isdigit():
@@ -118,7 +119,8 @@ class Parser:
                             start_hub["y"] = self._parse_positif_int(start_hub["y"], "y coordinate", line_number)
 
                             if len(line.strip().split(" ")) > 4 :
-                                self.parse
+                                metadata : dict = self._parse_metadata(line, line_number)
+                                start_hub["metadata"] = metadata
 
 
                             t_hub = Hub(**start_hub)
