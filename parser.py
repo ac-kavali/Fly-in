@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 import re
-from typing import  List
-
+from typing import List
 
 class Zoneytpes(Enum):
     NORMAL = "normal"
@@ -50,6 +49,7 @@ class Parser:
         self._filename = filename
         self.meta_data_pattern = re.compile(r"\[(\w+=\S+)(\s+\w+=\S+)*\]")
         self.valid_m_keys = {"zone", "color", "max_drones"}
+        self.check_conn = set()
 
 
     @staticmethod
@@ -125,17 +125,24 @@ class Parser:
             raise ConfigFileError(f"Line {line_number}: meta-data bad syntax ")
 
     def _parse_connection(self, line, line_number):
-        connection_pattern = re.compile(r"^(?P<connection>[^\s-]+-[^\s-]+)?"
+        connection_pattern = re.compile(
+    r"^(?P<connection>[^\s-]+-[^\s-]+)?"
     r"\s*"
-    r"(?P<metadata>\[\w+=\S+(?:\s+\w+=\S+)*\])?"
-    r"(?P<garbage>.*)$")
+    r"(?P<metadata>\[max_link_capacity=\d+\])?"
+    r"(?P<garbage>.*)$"
+    )
         match = re.match(connection_pattern, line.removeprefix("connection:").strip())
         if match.group("garbage"):
             raise ConfigFileError(f'Line {line_number}: invalid connection syntax <'+ match.group("garbage")+'>')
         else:
             HubA = match.group("connection").split("-")[0]
             HubB = match.group("connection").split("-")[1]
-            return Connection(HubA, HubB, match.group("metadata"))
+            current_connection = frozenset((HubA, HubB))
+            if current_connection in self.check_conn:
+                raise ConfigFileError(f"Line {line_number}: duplicate connection! ")
+            else:
+                self.check_conn.add(current_connection)
+                return Connection(HubA, HubB, match.group("metadata"))
 
 
     def parse_data(self):

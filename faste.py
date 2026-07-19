@@ -1,9 +1,8 @@
-import re
+check_conn = set()
+check_conn.add(frozenset(("A", "B")))
+connection = frozenset(("B", "A"))
 
-
-pattern = re.compile( )
-
-with open("texto.txt", 'r') as file:
-    for line in file:
-        match = re.match(pattern, line.removeprefix("connection:").strip())
-        print(match.group("garbage"))
+if connection in check_conn:
+    print("Duplicate connection")
+else:
+    check_conn.add(connection)
