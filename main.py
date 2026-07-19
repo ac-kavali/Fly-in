@@ -1,6 +1,9 @@
 from parser import Parser
+import sys
 
-parser = Parser("texto.txt")
+map_file = sys.argv[1]
+
+parser = Parser(map_file)
 
 graph = parser.parse_data()
 

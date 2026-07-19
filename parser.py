@@ -17,8 +17,6 @@ class Parser:
         absolut_num = string_num[1:] if string_num.startswith("-") else string_num
         if not absolut_num.isdigit():
             raise ConfigFileError(f"Line {line_number}: {data_spec} support only number!")
-        elif int(string_num) < 0:
-            raise ConfigFileError(f"Line {line_number}: {data_spec} must be a positive number!")
         if "number of drones" in data_spec:
             if int(string_num) == 0:
                 raise ConfigFileError(f"Line {line_number}: {data_spec} must be a different to zero!")
