@@ -1,54 +1,6 @@
-from dataclasses import dataclass, field
-from enum import Enum
 import re
-from typing import List
+from models import ZoneType, ConfigFileError, Connection, HubMetadata, Hub, Graph
 
-
-
-class ZoneType(Enum):
-    NORMAL = "normal"
-    RESTRICTED = "restricted"
-    PRIORITY = "priority"
-    BLOCKED = "blocked"
-
-class ConfigFileError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-
-@dataclass
-class Connection:
-    HubA: str
-    HubB: str
-    max_link_capacity: int
-
-@dataclass
-class HubMetadata:
-    zone: ZoneType = ZoneType.NORMAL
-    color: str | None = None
-    max_drones: int = 1
-
-@dataclass
-class Hub:
-    name: str
-    x: int
-    y: int
-    is_start: bool
-    is_end: bool
-    metadata: HubMetadata = field(default_factory=HubMetadata)
-
-
-@dataclass
-class Graph:
-    nb_drones: int
-    start_hub: Hub
-    end_hub: Hub | None
-    hubs: list[Hub] | None
-    connections: List[Connection] | None
-
-data_checklist = {"start_hub": 0,
-                 "end_hub": 0
-                  }
 
 class Parser:
     def __init__(self, filename):
@@ -56,6 +8,8 @@ class Parser:
         self.meta_data_pattern = re.compile(r"\[(\w+=\S+)(\s+\w+=\S+)*\]")
         self.valid_m_keys = {"zone", "color", "max_drones"}
         self.check_conn = set()
+        self.reserved_zone_names = set()
+        self.data_checklist = {"start_hub": 0, "end_hub": 0}
 
 
     @staticmethod
@@ -74,7 +28,7 @@ class Parser:
     def _parse_hub(self, line, line_number):
         hub = {}
         try:
-            hub["name"] = line.split(":")[1].strip().split(" ")[0]
+            hub["name"] = line.split(":")[1].strip().split()[0]
         except IndexError:
             raise ConfigFileError("Messing Hub name")
         if self.meta_data_pattern.match(hub["name"]):
@@ -85,7 +39,7 @@ class Parser:
 
         # Parse x
         try:
-            hub["x"] = line.split(":")[1].strip().split(" ")[1]
+            hub["x"] = line.split(":")[1].strip().split()[1]
         except IndexError:
             raise ConfigFileError("Missing x and y")
 
@@ -93,7 +47,7 @@ class Parser:
 
         # Parse y
         try:
-            hub["y"] = line.split(":")[1].strip().split(" ")[2]
+            hub["y"] = line.split(":")[1].strip().split()[2]
         except Exception:
             raise ConfigFileError("Messing y  coordinates")
         if '[' in hub["y"] or hub["y"].isspace():
@@ -105,14 +59,18 @@ class Parser:
             hub["metadata"]: HubMetadata = self._parse_metadata(line, line_number)
         else:
             hub["metadata"] = None
-
+        if hub["name"] in self.reserved_zone_names:
+            raise ConfigFileError(
+                f'Line {line_number}: duplicate zone name \'{hub["name"]}\''
+            )
+        self.reserved_zone_names.add(hub["name"])
         return hub
 
 
     def _parse_metadata (
             self, line: str, line_number: int
     ) -> HubMetadata:
-        metadata_part = " ".join(line.split(" ")[4:]).strip()
+        metadata_part = " ".join(line.split()[4:]).strip()
         match = re.match(self.meta_data_pattern, metadata_part)
 
         if not match:
@@ -164,6 +122,8 @@ class Parser:
         else:
             HubA = match.group("connection").split("-")[0]
             HubB = match.group("connection").split("-")[1]
+            self._check_zone_name(HubA, line_number)
+            self._check_zone_name(HubB, line_number)
             current_connection = frozenset((HubA, HubB))
             if current_connection in self.check_conn:
                 raise ConfigFileError(f"Line {line_number}: duplicate connection! ")
@@ -178,6 +138,9 @@ class Parser:
                     )
                 return Connection(HubA, HubB, int(max_link_capacity))
 
+    def _check_zone_name(self, zone_name, line_number):
+        if zone_name not in self.reserved_zone_names:
+            raise ConfigFileError(f"Line {line_number}: <{zone_name}> not a valid hub ")
 
     def parse_data(self):
         hubs = []
@@ -205,8 +168,8 @@ class Parser:
 
                     # Parse start_hub
                     elif line.startswith("start_hub:"):
-                        if data_checklist["start_hub"] == 0:
-                            data_checklist["start_hub"] += 1
+                        if self.data_checklist["start_hub"] == 0:
+                            self.data_checklist["start_hub"] += 1
                             start_hub: dict= self._parse_hub(line, line_number)
                             start_hub_obj = Hub(start_hub["name"],
                                                 start_hub["x"],
@@ -225,8 +188,8 @@ class Parser:
 
                     # Parse end_hub
                     elif line.startswith("end_hub:"):
-                        if data_checklist["end_hub"] == 0:
-                            data_checklist["end_hub"] += 1
+                        if self.data_checklist["end_hub"] == 0:
+                            self.data_checklist["end_hub"] += 1
                             end_hub = self._parse_hub(line, line_number)
                             end_hub_obj = Hub(**end_hub, is_start=False, is_end=True)
 
