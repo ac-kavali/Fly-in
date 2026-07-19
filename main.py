@@ -1,12 +1,29 @@
 from parser import Parser
-from parser import Graph
 
 parser = Parser("texto.txt")
 
 graph = parser.parse_data()
 
 
+
+
+print(f"Start hub : name: {graph.start_hub.name}  x={graph.start_hub.x} , y={graph.start_hub.y} , "
+      f"\nmetadata: zone type: {graph.start_hub.metadata.zone.value}"
+      f"\ncolor: {graph.start_hub.metadata.color}"
+      f"\nmax drones: {graph.start_hub.metadata.max_drones}\n")
+
+
+print(f"End hub : name: {graph.end_hub.name}  x={graph.end_hub.x} , y={graph.end_hub.y}, "
+      f"\nmetadata: zone type: {graph.end_hub.metadata.zone.value}"
+      f"\ncolor: {graph.end_hub.metadata.color}"
+      f"\nmax drones: {graph.end_hub.metadata.max_drones}\n")
+print()
+
+for hub in graph.hubs:
+    print(f"hub : name: {hub.name}  x={hub.x} , y={hub.y}, "
+          f"\nmetadata: zone type: {hub.metadata.zone.value}"
+          f"\ncolor: {hub.metadata.color}"
+          f"\nmax drones: {hub.metadata.max_drones}\n")
+
 for connection in graph.connections:
-    print(connection.HubA + ":" + connection.HubB)
-    if connection.metadata :
-        print( "metadata: "+ connection.metadata , end=" \n")
+    print(f"Connection {connection.HubA}<->{connection.HubB} max_link: {connection.max_link_capacity}")

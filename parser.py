@@ -1,9 +1,11 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import re
 from typing import List
 
-class Zoneytpes(Enum):
+
+
+class ZoneType(Enum):
     NORMAL = "normal"
     RESTRICTED = "restricted"
     PRIORITY = "priority"
@@ -18,7 +20,13 @@ class ConfigFileError(Exception):
 class Connection:
     HubA: str
     HubB: str
-    metadata: dict
+    max_link_capacity: int
+
+@dataclass
+class HubMetadata:
+    zone: ZoneType = ZoneType.NORMAL
+    color: str | None = None
+    max_drones: int = 1
 
 @dataclass
 class Hub:
@@ -27,7 +35,7 @@ class Hub:
     y: int
     is_start: bool
     is_end: bool
-    metadata: dict | None = None
+    metadata: HubMetadata = field(default_factory=HubMetadata)
 
 
 @dataclass
@@ -38,11 +46,9 @@ class Graph:
     hubs: list[Hub] | None
     connections: List[Connection] | None
 
-
 data_checklist = {"start_hub": 0,
                  "end_hub": 0
                   }
-
 
 class Parser:
     def __init__(self, filename):
@@ -74,9 +80,6 @@ class Parser:
         if self.meta_data_pattern.match(hub["name"]):
             raise ConfigFileError("Metadata must be after coordinates")
 
-        if hub["name"].isdigit():
-            raise ConfigFileError("Hub name can't be number")
-
         if "-" in hub["name"]:
             raise ConfigFileError("dashes are forbidden in hubs name")
 
@@ -99,38 +102,62 @@ class Parser:
 
         # Parse meta-data
         if len(line.strip().split(" ")) > 4:
-            metadata: dict = self._parse_metadata(line, line_number)
-            invalid_meta = set(metadata) - self.valid_m_keys
-            if invalid_meta:
-                raise ConfigFileError(f"Line {line_number}: invalid metadata keys({next(iter(invalid_meta))})")
-            hub["metadata"] = metadata
+            hub["metadata"]: HubMetadata = self._parse_metadata(line, line_number)
         else:
             hub["metadata"] = None
 
         return hub
 
 
-    def _parse_metadata(self, line, line_number):
+    def _parse_metadata (
+            self, line: str, line_number: int
+    ) -> HubMetadata:
         metadata_part = " ".join(line.split(" ")[4:]).strip()
-        metadata = re.match(self.meta_data_pattern, metadata_part)
-        if metadata:
-            metadata = re.split(r"[ =]", metadata.group(0))
-            metadata = [data.replace("[", "").replace("]", "") for data in metadata]
-            total_len = len(metadata[::2])
-            metadata = dict(zip(metadata[::2], metadata[1::2]))
-            if len(metadata) < total_len:
-                raise ConfigFileError(f"Line {line_number}: duplicate meta-data specifications")
-            return metadata
-        else:
-            raise ConfigFileError(f"Line {line_number}: meta-data bad syntax ")
+        match = re.match(self.meta_data_pattern, metadata_part)
+
+        if not match:
+            raise ConfigFileError(
+                f"Line {line_number}: meta-data bad syntax"
+            )
+
+        tokens = re.split(r"[ =]", match.group(0))
+        tokens = [tok.replace("[", "").replace("]", "") for tok in tokens]
+        keys = tokens[::2]
+        values = tokens[1::2]
+
+        if len(set(keys)) < len(keys):
+            raise ConfigFileError(
+                f"Line {line_number}: duplicate meta-data specifications"
+            )
+
+        parsed = dict(zip(keys, values))
+        invalid_meta = set(parsed) - self.valid_m_keys
+        if invalid_meta:
+            raise ConfigFileError(f"Line {line_number}: invalid metadata keys({next(iter(invalid_meta))})")
+        kwargs: dict[str, ZoneType | str | int] = {}
+        try:
+            if "zone" in parsed:
+                kwargs["zone"] = ZoneType(parsed["zone"])
+            if "color" in parsed:
+                kwargs["color"] = parsed["color"]
+            if "max_drones" in parsed:
+                kwargs["max_drones"] = int(parsed["max_drones"])
+        except ValueError as exc:
+            raise ConfigFileError(
+                f"Line {line_number}: invalid meta-data value ({exc})"
+            ) from exc
+        return HubMetadata(**kwargs)
 
     def _parse_connection(self, line, line_number):
+        if not line.strip().split(":")[1] :
+            raise ConfigFileError(f"Line {line_number}: Invalid connection syntax")
         connection_pattern = re.compile(
     r"^(?P<connection>[^\s-]+-[^\s-]+)?"
     r"\s*"
     r"(?P<metadata>\[max_link_capacity=\d+\])?"
     r"(?P<garbage>.*)$"
     )
+        max_link_capacity = 1
         match = re.match(connection_pattern, line.removeprefix("connection:").strip())
         if match.group("garbage"):
             raise ConfigFileError(f'Line {line_number}: invalid connection syntax <'+ match.group("garbage")+'>')
@@ -142,7 +169,14 @@ class Parser:
                 raise ConfigFileError(f"Line {line_number}: duplicate connection! ")
             else:
                 self.check_conn.add(current_connection)
-                return Connection(HubA, HubB, match.group("metadata"))
+                if match.group("metadata"):
+                    max_link_capacity = (
+                        match.group("metadata")
+                        .replace("[", "")
+                        .replace("]", "")
+                        .split("=")[1]
+                    )
+                return Connection(HubA, HubB, int(max_link_capacity))
 
 
     def parse_data(self):
@@ -173,15 +207,21 @@ class Parser:
                     elif line.startswith("start_hub:"):
                         if data_checklist["start_hub"] == 0:
                             data_checklist["start_hub"] += 1
-                            start_hub = self._parse_hub(line, line_number)
-                            start_hub_obj = Hub(**start_hub, is_start=True, is_end=False)
+                            start_hub: dict= self._parse_hub(line, line_number)
+                            start_hub_obj = Hub(start_hub["name"],
+                                                start_hub["x"],
+                                                start_hub["y"],
+                                                is_start=True,
+                                                is_end=False,
+                                                metadata=start_hub["metadata"] or HubMetadata())
                         else:
                             raise ConfigFileError("There must be exactly one start_hub: zone and one end_hub: zone.")
 
                     # Parse hubs
                     elif line.startswith("hub:"):
                         hub= self._parse_hub(line, line_number)
-                        hubs.append(hub)
+                        hub_obj = Hub(hub["name"], hub["x"], hub["y"], is_start=True, is_end=False, metadata=hub["metadata"] or HubMetadata())
+                        hubs.append(hub_obj)
 
                     # Parse end_hub
                     elif line.startswith("end_hub:"):
