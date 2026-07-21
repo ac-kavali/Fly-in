@@ -1,15 +1,14 @@
 from parser import Parser
-import sys
+from cli import cla_parser
 
-map_file = sys.argv[1]
-
-parser = Parser(map_file)
+arguments = cla_parser()
+parser = Parser(arguments.map)
 
 graph = parser.parse_data()
 
 
 
-
+print(f"number of drones: {graph.nb_drones}")
 print(f"Start hub : name: {graph.start_hub.name}  x={graph.start_hub.x} , y={graph.start_hub.y} , "
       f"\nmetadata: zone type: {graph.start_hub.metadata.zone.value}"
       f"\ncolor: {graph.start_hub.metadata.color}"
