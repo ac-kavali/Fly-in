@@ -73,7 +73,7 @@ class Parser:
         )
 
         # Parse meta-data
-        if len(line.strip().split(" ")) > 4:
+        if len(line.strip().split()) > 4:
             hub["metadata"]: HubMetadata = self._parse_metadata(
                 line, line_number
             )
@@ -95,7 +95,6 @@ class Parser:
     ) -> HubMetadata:
         metadata_part = " ".join(line.split()[4:]).strip()
         match = re.match(self.meta_data_pattern, metadata_part)
-
         if not match:
             raise ConfigFileError(
                 f"Line {line_number}: meta-data bad syntax"
