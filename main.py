@@ -2,72 +2,99 @@ from models import ZoneType
 from parser import Parser
 from cli import cla_parser
 import heapq
-
-arguments = cla_parser()
-parser = Parser(arguments.map)
-graph = parser.parse_data()
-
-
-start = graph.start_hub.name
-
-all_candidate_hubs = {_hub.name : _hub for _hub in graph.hubs if _hub.metadata.zone != ZoneType.BLOCKED}
-all_candidate_hubs[graph.end_hub.name] = graph.end_hub
-all_candidate_hubs[graph.start_hub.name] = graph.start_hub
-
-visited = []
-shortest_paths = []
-
-links_table = {
-    hub_obj.name: (None, float("inf"))
-    for hub,hub_obj in all_candidate_hubs.items()
-}
-
-zone_cost_dict = {
-    ZoneType.PRIORITY: 1,
-    ZoneType.RESTRICTED: 2,
-    ZoneType.NORMAL: 1
-}
-
-links_table[start] = (None, 0)
-current = start
-while all_candidate_hubs:
-    print(f"All_candidate: {all_candidate_hubs.keys()}")
-    if current in visited:
-        continue
-    visited.append(current)
-    print(f"visited: {visited}")
-    last, last_cost = links_table[current]
-
-    for hub_name, hub_ob in all_candidate_hubs.items():
-        if frozenset((current, hub_name)) in parser.check_conn:
-            zone_cost = zone_cost_dict[hub_ob.metadata.zone]
-            new_cost = zone_cost + last_cost if last_cost != float("inf") else zone_cost
-            if new_cost < links_table[hub_name][1]:
-                priority = 0 if hub_ob.metadata.zone == ZoneType.PRIORITY else 1
-                links_table[hub_name] = (current, new_cost)
-                heapq.heappush(shortest_paths, (new_cost, priority, hub_name))
-                print(shortest_paths)
-
-    all_candidate_hubs.pop(current)
-    if not shortest_paths:
-        break
-    print(f"shortest Paths: {shortest_paths}")
-    current = heapq.heappop(shortest_paths)[2]
-    print(f"current: {current}")
+from dataclasses import dataclass, field
+from typing import Optional
+import sys
 
 
-path = [graph.end_hub.name]
-current = graph.end_hub.name
-print(links_table)
+try:
+    arguments = cla_parser()
+    parser = Parser(arguments.map)
+    graph = parser.parse_data()
+except Exception as e:
+    print(e)
+    sys.exit(1)
 
-while current != start :
-    last, _ = links_table[current]
-    path.append(last)
-    current = last
-
-print(path[::-1])
-
+def main() -> None:
+    """
+    start the program
+    return: None
+    """
 
 
-# except Exception as e:
-#     print(e)
+    for name, zone in data.zones.items():
+        print(f"name: {name}: {zone.max_drones}" )
+    print("------")
+
+
+    reservations = ReservationTable(graph) #the reservation table empty
+
+    pathfinder = Pathfinder() # dijkstra pathfinder respect res-table
+    visualizer = VisualizerPrint() #terminal output
+
+    total_turns = 0   # turns
+    all_paths: list[list[tuple[Zone, int]]] = []    # Example [[(Zone1, turn1), (Zone2, Turn2)..] [anotherpath...3]]
+
+    for drone_id in range(1, data.nb_drones + 1):
+        path = pathfinder.find_path(
+            graph,
+            data.start_zone,
+            data.end_zone,
+            data.nb_drones,
+            reservations
+        )
+        print(path)
+        obj_path = convert_name_zone_to_obj(path, graph)   # The full paths of all the drones
+
+        if not path:
+            print(f"Drone {drone_id}: No path found")
+            continue
+
+        all_paths.append(obj_path)
+        print(f"All paths: {all_paths}")
+        total_turns = path[-1][1]
+        print(f"total_turns:{total_turns} ")
+        for i, (zone, turn) in enumerate(path):
+            reservations.reserve(zone, turn)
+            if i == 0:               # If it's the start then it have not previous zone then continue
+                continue
+            prev_zone, _ = path[i - 1]  #Skip it if its was just waiting
+            if zone == prev_zone:
+                continue
+            obj_zone = graph.get_object_zone(zone)
+            if obj_zone is None:
+                continue
+            movement_cost = obj_zone.get_movement_cost()
+            reservation_start = turn - movement_cost + 1
+            reservation_end = turn
+
+            for t in range(reservation_start, reservation_end + 1):
+                print(f"Turn: {turn}-movement_cost{movement_cost}+1, turn:{turn} +1 ")
+                reservations.reserve_connection(
+                    prev_zone,
+                    zone,
+                    t
+                )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
