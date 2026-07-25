@@ -35,10 +35,20 @@ class Hub:
     metadata: HubMetadata = field(default_factory=HubMetadata)
 
 
-@dataclass
 class Graph:
-    nb_drones: int
-    start_hub: Hub
-    end_hub: Hub | None
-    hubs: list[Hub] | None
-    connections: List[Connection] | None
+    def __init__(
+        self,
+        nb_drones: int ,
+        start_hub: Hub,
+        end_hub: Hub,
+        hubs: list[Hub],
+        connections: List[Connection]
+    ) -> None:
+        self.nb_drones: int = nb_drones
+        self.start_hub: Hub = start_hub
+        self.end_hub: Hub = end_hub
+        self.hubs: list[Hub] = hubs
+        self.connections: List[Connection] = connections
+
+    def function(self):
+        pass
