@@ -298,7 +298,7 @@ class Parser:
                 or otherwise violates the configuration format.
         """
         hubs = []
-        connections: list = []
+        connections: list[Connection] = []
         with open(self._filename, 'r') as file:
             i = 0
             line_number = 0

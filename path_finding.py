@@ -186,7 +186,6 @@ class Pathfinder:
             if current_zone == end.name:
                 return new_path
             visited.add(state)
-            print(f"this is visited: {visited}")
 
             wait_turn = current_turn + 1
 
