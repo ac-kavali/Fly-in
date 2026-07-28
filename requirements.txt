@@ -1,0 +1,4 @@
+# This project only relies on the Python standard library
+# no extra packages needed
+flake8
+mypy

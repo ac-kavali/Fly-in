@@ -1,8 +1,4 @@
 __pycache__
-./maps
-maps/*
-maps/
-texto.txt
 .idea
 .idea/*
-
+.mypy_cache

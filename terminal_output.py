@@ -67,7 +67,8 @@ class TerminalOutput:
         Returns:
             None
         """
-        print(f"Turn {turn}: {' '.join(movements)}")
+        # print(f"Turn {turn}: {' '.join(movements)}") to see turn number
+        print(' '.join(movements))
 
     def print_summary(self, total_turns: int) -> None:
         """Print the total number of turns.
@@ -108,6 +109,16 @@ class TerminalOutput:
                 "gray": "\033[90m",
                 "grey": "\033[90m",
                 "white": "\033[97m",
+                "black": "\033[30m",
+                "purple": "\033[38;5;93m",
+                "brown": "\033[38;5;94m",
+                "orange": "\033[38;5;208m",
+                "maroon": "\033[38;5;52m",
+                "gold": "\033[38;5;220m",
+                "darkred": "\033[38;5;88m",
+                "violet": "\033[38;5;99m",
+                "crimson": "\033[38;5;197m",
+                "rainbow": "\033[97m",
             }
             prefix = color_by_name.get(hub.metadata.color.lower(), "\033[37m")
         else:

@@ -299,94 +299,106 @@ class Parser:
         """
         hubs = []
         connections: list[Connection] = []
-        with open(self._filename, 'r') as file:
-            i = 0
-            line_number = 0
-            for line in file:
-                line_number += 1
-                if line == '\n' or line.startswith("#"):
-                    continue
-                else:
-                    if "#" in line:
-                        line = line.split("#")[0]
-                    if i == 0 and not line.startswith("nb_drones:"):
-                        if any(
-                            ln.startswith("nb_drones:") for ln in file
-                        ):
-                            raise ConfigFileError(
-                                "The number of drones should be at "
-                                "the first line"
-                            )
-                        elif i == 0 and not line.startswith("nb_drones:"):
-                            raise ConfigFileError(
-                                "Missing the nb_drones line"
-                            )
-                    elif i == 0 and line.startswith("nb_drones:"):
-                        str_nb_drones = line.split(":")[1].strip()
-                        nb_drones: int = self._parse_positif_int(
-                            str_nb_drones, "The number of drones",
-                            line_number
+
+        try:
+            with open(self._filename, 'r') as file:
+                lines = file.readlines()
+
+        except FileNotFoundError:
+
+            raise ConfigFileError(f"Config file not found: {self._filename}")
+
+        except PermissionError:
+
+            raise ConfigFileError(f"Cannot access config"
+                                  f" file: {self._filename}")
+        i = 0
+        line_number = 0
+        for line in lines:
+            line_number += 1
+            if line == '\n' or line.startswith("#"):
+                continue
+            else:
+                if "#" in line:
+                    line = line.split("#")[0]
+                if i == 0 and not line.startswith("nb_drones:"):
+                    if any(
+                        ln.startswith("nb_drones:") for ln in file
+                    ):
+                        raise ConfigFileError(
+                            "The number of drones should be at "
+                            "the first line"
                         )
-                        i += 1
-
-                    elif line.startswith("start_hub:"):
-                        if self.data_checklist["start_hub"] == 0:
-                            self.data_checklist["start_hub"] += 1
-                            start_hub = self._parse_hub(
-                                line, line_number
-                            )
-                            start_hub_obj = Hub(
-                                start_hub["name"],
-                                start_hub["x"],
-                                start_hub["y"],
-                                is_start=True,
-                                is_end=False,
-                                metadata=start_hub["metadata"]
-                                or HubMetadata()
-                            )
-                        else:
-                            raise ConfigFileError(
-                                "There must be exactly one start_hub: "
-                                "zone and one end_hub: zone."
-                            )
-
-                    elif line.startswith("hub:"):
-                        hub = self._parse_hub(line, line_number)
-                        hub_obj = Hub(
-                            hub["name"], hub["x"], hub["y"],
-                            is_start=True, is_end=False,
-                            metadata=hub["metadata"] or HubMetadata()
+                    elif i == 0 and not line.startswith("nb_drones:"):
+                        raise ConfigFileError(
+                            "Missing the nb_drones line"
                         )
-                        hubs.append(hub_obj)
+                elif i == 0 and line.startswith("nb_drones:"):
+                    str_nb_drones = line.split(":")[1].strip()
+                    nb_drones: int = self._parse_positif_int(
+                        str_nb_drones, "The number of drones",
+                        line_number
+                    )
+                    i += 1
 
-                    elif line.startswith("end_hub:"):
-                        if self.data_checklist["end_hub"] == 0:
-                            self.data_checklist["end_hub"] += 1
-                            end_hub = self._parse_hub(line, line_number)
-                            end_hub_obj = Hub(
-                                end_hub["name"],
-                                end_hub["x"],
-                                end_hub["y"],
-                                is_start=False,
-                                is_end=True,
-                                metadata=end_hub["metadata"]
-                            )
-
-                    elif line.startswith("connection"):
-                        connections.append(
-                            self._parse_connection(line, line_number)
+                elif line.startswith("start_hub:"):
+                    if self.data_checklist["start_hub"] == 0:
+                        self.data_checklist["start_hub"] += 1
+                        start_hub = self._parse_hub(
+                            line, line_number
+                        )
+                        start_hub_obj = Hub(
+                            start_hub["name"],
+                            start_hub["x"],
+                            start_hub["y"],
+                            is_start=True,
+                            is_end=False,
+                            metadata=start_hub["metadata"]
+                            or HubMetadata()
+                        )
+                    else:
+                        raise ConfigFileError(
+                            "There must be exactly one start_hub: "
+                            "zone and one end_hub: zone."
                         )
 
-            if (self.data_checklist["start_hub"] != 1
-                    or self.data_checklist["end_hub"] != 1):
-                raise ConfigFileError(
-                    "Config file error : There must be exactly one "
-                    "start_hub: zone and one end_hub: zone."
-                )
+                elif line.startswith("hub:"):
+                    hub = self._parse_hub(line, line_number)
+                    hub_obj = Hub(
+                        hub["name"], hub["x"], hub["y"],
+                        is_start=False, is_end=False,
+                        metadata=hub["metadata"] or HubMetadata()
+                    )
+                    hubs.append(hub_obj)
 
-            self.data_checklist = {"start_hub": 0, "end_hub": 0}
+                elif line.startswith("end_hub:"):
+                    if self.data_checklist["end_hub"] == 0:
+                        self.data_checklist["end_hub"] += 1
+                        end_hub = self._parse_hub(line, line_number)
+                        end_hub_obj = Hub(
+                            end_hub["name"],
+                            end_hub["x"],
+                            end_hub["y"],
+                            is_start=False,
+                            is_end=True,
+                            metadata=end_hub["metadata"]
+                        )
 
-            t_graph = Graph(
-                nb_drones, start_hub_obj, end_hub_obj, hubs, connections
+                elif line.startswith("connection"):
+                    connections.append(
+                        self._parse_connection(line, line_number)
+                    )
+
+        if (self.data_checklist["start_hub"] != 1
+                or self.data_checklist["end_hub"] != 1):
+            raise ConfigFileError(
+                "Config file error : There must be exactly one "
+                "start_hub: zone and one end_hub: zone."
             )
-            return t_graph
+
+        self.data_checklist = {"start_hub": 0, "end_hub": 0}
+
+        t_graph = Graph(
+            nb_drones, start_hub_obj, end_hub_obj, hubs, connections
+        )
+        return t_graph
