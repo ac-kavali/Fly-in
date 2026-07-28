@@ -1,4 +1,4 @@
-*This project has been created by as part of the 42 curriculum by achahi
+*This project has been created by as part of the 42 curriculum by achahi*
 
 # Drone Fleet Pathfinding Simulator
 
